@@ -11,9 +11,9 @@ default:
     - name: NODE_IP
       valueFrom:
         fieldRef:
-        fieldPath: status.hostIP 
+          fieldPath: status.hostIP 
     - name: OTEL_EXPORTER_OTLP_ENDPOINT
-        value: 'http://$(NODE_IP):4317'
+      value: 'http://$(NODE_IP):4317'
     - name: OTEL_SERVICE_NAME
       valueFrom:
         fieldRef:
@@ -50,12 +50,7 @@ components:
     - name: redis
       value: 6379
 
-  adService:
-    enabled: true
-    servicePort: 8080
-    podAnnotations: {}
-    #  sidecar.opentelemetry.io/inject: "false"
-    #  instrumentation.opentelemetry.io/inject-java: "true"
+
   cartService:
     enabled: true
     servicePort: 8080
