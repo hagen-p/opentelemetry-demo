@@ -17,62 +17,65 @@ spec:
       nodeSelector:
       containers:
         - name: frontend
-          image: quay.io/phagen/frontend-rum-profile:1
-          #image: docker.io/harnit/shopdemo-frontend:2.1-customevents
+          image: quay.io/phagen/otel-frontend:1.0 
+          imagePullPolicy: Always
           ports:
           - containerPort: 8080
-          readinessProbe:
-            initialDelaySeconds: 10
-            httpGet:
-              path: "/_healthz"
-              port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-readiness-probe"
-          livenessProbe:
-            initialDelaySeconds: 10
-            httpGet:
-              path: "/_healthz"
-              port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-liveness-probe"
+          # readinessProbe:
+          #   initialDelaySeconds: 10
+          #   httpGet:
+          #     path: "/_healthz"
+          #     port: 8080
+          #     httpHeaders:
+          #     - name: "Cookie"
+          #       value: "shop_session-id=x-readiness-probe"
+          # livenessProbe:
+          #   initialDelaySeconds: 10
+          #   httpGet:
+          #     path: "/_healthz"k9s
+
+          #     port: 8080
+          #     httpHeaders:
+          #     - name: "Cookie"
+          #       value: "shop_session-id=x-liveness-probe"
           env:
           - name: PORT
             value: "8080"
-          - name: PRODUCT_CATALOG_SERVICE_ADDR
-            value: "productcatalogservice:3550"
-          - name: CURRENCY_SERVICE_ADDR
-            value: "currencyservice:7000"
+          - name: AD_SERVICE_ADDR
+            value: "adservice:9555"
           - name: CART_SERVICE_ADDR
-            value: "cartservice:7070"
+            value: "$(NODE_IP):8080" 
+          - name: CHECKOUT_SERVICE_ADDR
+            value: "checkoutservice:8080"   
+          - name: PRODUCT_CATALOG_SERVICE_ADDR
+            value: "productcatalogservice:8080"
+          - name: CURRENCY_SERVICE_ADDR
+            value: "currencyservice:8080"
           - name: RECOMMENDATION_SERVICE_ADDR
             value: "recommendationservice:8080"
           - name: SHIPPING_SERVICE_ADDR
-            value: "shippingservice:50051"
-          - name: CHECKOUT_SERVICE_ADDR
-            value: "checkoutservice:5050"
-          - name: AD_SERVICE_ADDR
-            value: "adservice:9555"
-          - name: RUM_REALM
-            value: ${REALM}
-          - name: RUM_AUTH
-            value: ${RUM_TOKEN}
-          - name: RUM_APP_NAME
-            value: ${INSTANCE}-rum-app
-          - name: RUM_ENVIRONMENT
-            value: ${INSTANCE}-apm-env
-          - name: RUM_DEBUG
+            value: "shippingservice:8080"
+          - name: OTEL_SERVICE_NAME
+            value: "frontend-otel"
           - name: ENV_PLATFORM
             value: "aws"
+          ## Splunk Specific envs  
+          - name: RUM_REALM
+            value: "us1"
+          - name: RUM_AUTH
+            value: "lxNMVZ1BXDemv_Wvv6Ae4Q"
+          - name: RUM_APP_NAME
+            value: "otel-demo-app"
+          - name: RUM_ENVIRONMENT
+            value: "otel-demo"
+          - name: RUM_DEBUG
           - name: NODE_IP
             valueFrom:
               fieldRef:
                 fieldPath: status.hostIP
-          - name: SIGNALFX_ENDPOINT_URL
-            # value: "http://zipkin.default:9411/api/v2/spans"
-            value: "http://$(NODE_IP):9411/api/v2/spans"
-          - name: SIGNALFX_SERVER_TIMING_CONTEXT
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://$(NODE_IP):4317"
+          - name: SPLUNK_TRACE_RESPONSE_HEADER_ENABLED
             value: "true"
           # resources:
           #   requests:
@@ -93,5 +96,24 @@ spec:
   ports:
   - name: http
     port: 80
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-external
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "5"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "3"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: "2"
+    external-dns.alpha.kubernetes.io/hostname: demo.
+spec:
+  type: LoadBalancer
+  selector:
+    app: frontend
+  ports:
+  - name: http
+    port: 81
     targetPort: 8080
 ---

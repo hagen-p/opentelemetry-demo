@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adservice
+spec:
+  selector:
+    matchLabels:
+      app: adservice
+  template:
+    metadata:
+      labels:
+        app: adservice
+    spec:
+      terminationGracePeriodSeconds: 5
+      tolerations:
+      nodeSelector:
+      containers:
+        - name: adserver
+          image: otel/demo:v0.3.4-alpha-adservice
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9555
+          env:
+            - name: PORT
+              value: '9555'
+            - name: OTEL_SERVICE_NAME
+              value: adservice
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment=otel-demo"
+            - name:  OTEL_PROPAGATORS
+              value: "b3multi"
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: SPLUNK_PROFILER_ENABLED
+              value: "true"
+            - name: SPLUNK_PROFILER_MEMORY_ENABLED
+              value: "true"
+            - name: SPLUNK_METRICS_ENABLED
+              value: "true"
+            - name:  SPLUNK_METRICS_ENDPOINT
+              value: 'http://$(NODE_IP):9943'
+            - name: ENABLE_COPYRIGHT_CERTIFICATION
+              value: "false"
+            - name: STOCK_PHOTO_MAX_FINGERPRINT_SIZE
+              value:  '100'
+            - name: OTEL_TRACE_EXPORTER
+              value: otlp
+            - name: OTEL_TRACES_SAMPLER
+              value: "rules"
+            #- name: OTEL_TRACES_SAMPLER_ARG
+            #  value: "drop=/grpc.health.v1.Health;fallback=parentbased_always_on"
+            #- name: JAVA_TOOL_OPTIONS
+            #  value: "-javaagent:/opt/sfx/splunk-otel-javaagent-all.jar -Dsplunk.profiler.call.stack.interval=500ms -Dsplunk.profiler.include.internal.stacks=false -Dsplunk.profiler.cpu.data.format=pprof-gzip-base64 -Xmx640m"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: 'http://$(NODE_IP):4317'
+          resources:
+            #requests:
+              #cpu: 300m
+              #memory: 780Mi
+            limits:
+              memory: 800Mi
+          readinessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 25
+            exec:
+              command: ['/bin/grpc_health_probe', '-addr=:9555']
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            exec:
+              command: ['/bin/grpc_health_probe', '-addr=:9555']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adservice
+spec:
+  type: ClusterIP
+  selector:
+    app: adservice
+  ports:
+    - name: grpc
+      port: 9555
+      targetPort: 9555
+---

@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM openjdk:18-slim AS builder
-
+FROM --platform=linux/amd64 openjdk:18-slim AS builder
 WORKDIR /usr/src/app/
 
-COPY ./src/adservice/ ./
+COPY ./ ./
 COPY ./pb/ ./src/main/proto/
 RUN chmod +x ./gradlew
 RUN ./gradlew downloadRepos
@@ -24,14 +23,14 @@ RUN ./gradlew installDist
 
 # -----------------------------------------------------------------------------
 
-FROM openjdk:18-slim
+FROM --platform=linux/amd64 openjdk:18-slim
 
-ARG version=1.16.0
+ARG version=1.15.0
 WORKDIR /usr/src/app/
 
 COPY --from=builder /usr/src/app/ ./
-ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v$version/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
-ENV JAVA_TOOL_OPTIONS=-javaagent:/app/opentelemetry-javaagent.jar
+ADD https://github.com/signalfx/splunk-otel-java/releases/download/v$version/splunk-otel-javaagent-all.jar  /app/splunk-otel-javaagent-all.jar
+#ENV JAVA_TOOL_OPTIONS=-javaagent:/app/opentelemetry-javaagent.jar
 
 EXPOSE ${AD_SERVICE_PORT}
 ENTRYPOINT [ "./build/install/hipstershop/bin/AdService" ]
